@@ -38,3 +38,13 @@ export function lastMonths(n: number): string[] {
 export function sum<T>(rows: T[], pick: (r: T) => number): number {
   return rows.reduce((acc, r) => acc + Number(pick(r) || 0), 0)
 }
+
+export function mention(avg: number): { label: string; tone: 'ok' | 'info' | 'warn' | 'bad' } {
+  if (avg >= 16) return { label: 'Excellent', tone: 'ok' }
+  if (avg >= 14) return { label: 'Très bien', tone: 'ok' }
+  if (avg >= 12) return { label: 'Bien', tone: 'info' }
+  if (avg >= 10) return { label: 'Satisfaisant', tone: 'warn' }
+  return { label: 'Insuffisant', tone: 'bad' }
+}
+
+export const WEEKDAYS = ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
