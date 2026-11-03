@@ -1,21 +1,26 @@
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
+import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
 
-interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[] }
+interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[]; badge?: 'notifications' | 'messages' }
+const ALL: Role[] = ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student']
 
 const NAV: NavItem[] = [
-  { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student'] },
+  { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, roles: ALL },
   { to: '/eleves', label: 'Élèves', icon: GraduationCap, roles: ['director', 'secretary', 'accountant', 'teacher'] },
   { to: '/classes', label: 'Classes et cours', icon: School, roles: ['director', 'secretary', 'teacher'] },
   { to: '/notes', label: 'Notes', icon: PenLine, roles: ['director', 'secretary', 'teacher'] },
   { to: '/presences', label: 'Présences', icon: CalendarCheck, roles: ['director', 'secretary', 'teacher'] },
   { to: '/bulletins', label: 'Bulletins', icon: FileText, roles: ['director', 'secretary', 'teacher', 'parent', 'student'] },
   { to: '/finances', label: 'Finances', icon: Wallet, roles: ['director', 'secretary', 'accountant'] },
-  { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student'] },
+  { to: '/notifications', label: 'Notifications', icon: Bell, roles: ALL, badge: 'notifications' },
+  { to: '/messages', label: 'Messages', icon: Mail, roles: ALL, badge: 'messages' },
+  { to: '/utilisateurs', label: 'Utilisateurs', icon: Users, roles: ['director', 'secretary'] },
+  { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ALL },
 ]
 
 export function Logo({ light = false }: { light?: boolean }) {
@@ -34,21 +39,40 @@ export function Logo({ light = false }: { light?: boolean }) {
 export default function Layout() {
   const { profile, school, year, can, signOut } = useAuth()
   const [open, setOpen] = useState(false)
+  const [counts, setCounts] = useState({ notifications: 0, messages: 0 })
+  const location = useLocation()
   const items = NAV.filter((n) => can(...n.roles))
 
+  useEffect(() => {
+    if (!profile) return
+    let active = true
+    ;(async () => {
+      const [n, m] = await Promise.all([
+        supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', profile.id).is('read_at', null),
+        supabase.from('messages').select('id', { count: 'exact', head: true }).eq('recipient_id', profile.id).is('read_at', null),
+      ])
+      if (active) setCounts({ notifications: n.count ?? 0, messages: m.count ?? 0 })
+    })()
+    return () => { active = false }
+  }, [profile, location.pathname])
+
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1 px-3" aria-label="Navigation principale">
-      {items.map(({ to, label, icon: Icon }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
-          onClick={() => setOpen(false)}
-          className={({ isActive }) => clsx('flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors', isActive ? 'bg-white text-marine' : 'text-marine-200 hover:bg-marine-700 hover:text-white')}
-        >
-          <Icon className="h-5 w-5" aria-hidden /> {label}
-        </NavLink>
-      ))}
+    <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3" aria-label="Navigation principale">
+      {items.map(({ to, label, icon: Icon, badge }) => {
+        const n = badge ? counts[badge] : 0
+        return (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            onClick={() => setOpen(false)}
+            className={({ isActive }) => clsx('flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors', isActive ? 'bg-white text-marine' : 'text-marine-200 hover:bg-marine-700 hover:text-white')}
+          >
+            <Icon className="h-5 w-5" aria-hidden /> <span className="flex-1">{label}</span>
+            {n > 0 && <span className="rounded-full bg-crayon px-2 py-0.5 text-xs font-bold text-marine" aria-label={`${n} non lu(s)`}>{n}</span>}
+          </NavLink>
+        )
+      })}
     </nav>
   )
 
@@ -76,7 +100,10 @@ export default function Layout() {
 
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-marine-100 bg-white px-4 py-3 lg:hidden no-print">
         <Logo />
-        <button onClick={() => setOpen(true)} aria-label="Ouvrir le menu" className="rounded-lg p-2 text-marine hover:bg-marine-50"><Menu className="h-6 w-6" /></button>
+        <button onClick={() => setOpen(true)} aria-label="Ouvrir le menu" className="relative rounded-lg p-2 text-marine hover:bg-marine-50">
+          <Menu className="h-6 w-6" />
+          {counts.notifications + counts.messages > 0 && <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-marge" aria-hidden />}
+        </button>
       </header>
 
       {open && (
