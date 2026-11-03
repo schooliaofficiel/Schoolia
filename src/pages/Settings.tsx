@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { errorMessage, supabase } from '../lib/supabase'
-import { rows } from '../lib/db'
-import { ROLE_LABELS, type Profile } from '../lib/types'
-import { Alert, Badge, Button, Card, Field, Modal, PageHeader, useLoad, useToast } from '../components/ui'
+import { ROLE_LABELS } from '../lib/types'
+import { Alert, Button, Card, Field, Modal, PageHeader, useToast } from '../components/ui'
 
 export default function SettingsPage() {
   const { school, profile, year, can, refresh } = useAuth()
@@ -15,12 +14,13 @@ export default function SettingsPage() {
   const [confirmSeed, setConfirmSeed] = useState(false)
   const [seeding, setSeeding] = useState(false)
   const [seedError, setSeedError] = useState<string | null>(null)
+  const [pwd, setPwd] = useState({ a: '', b: '' })
+  const [pwdBusy, setPwdBusy] = useState(false)
+  const [pwdError, setPwdError] = useState<string | null>(null)
 
   useEffect(() => {
     if (school) setForm({ name: school.name, city: school.city ?? '', address: school.address ?? '', phone: school.phone ?? '', email: school.email ?? '', currency: school.currency })
   }, [school])
-
-  const { data: users } = useLoad(async () => (isDirector ? rows<Profile>(await supabase.from('profiles').select('*').order('full_name')) : []), [isDirector])
 
   async function save(e: FormEvent) {
     e.preventDefault()
@@ -36,6 +36,19 @@ export default function SettingsPage() {
     if (err) return setError(errorMessage(err))
     toast('success', 'Informations enregistrées.')
     await refresh()
+  }
+
+  async function changePassword(e: FormEvent) {
+    e.preventDefault()
+    setPwdError(null)
+    if (pwd.a.length < 8) return setPwdError('Le mot de passe doit contenir au moins 8 caractères.')
+    if (pwd.a !== pwd.b) return setPwdError('Les deux mots de passe ne correspondent pas.')
+    setPwdBusy(true)
+    const { error: err } = await supabase.auth.updateUser({ password: pwd.a })
+    setPwdBusy(false)
+    if (err) return setPwdError(errorMessage(err))
+    setPwd({ a: '', b: '' })
+    toast('success', 'Mot de passe modifié.')
   }
 
   async function seed() {
@@ -76,6 +89,15 @@ export default function SettingsPage() {
             <p className="mb-2 text-sm text-slate-500">{profile && ROLE_LABELS[profile.role]}</p>
             <p className="text-sm text-slate-600">Année scolaire : <strong>{year?.name ?? '—'}</strong></p>
           </Card>
+          <Card className="p-5">
+            <h2 className="mb-3 text-lg font-bold text-marine">Mot de passe</h2>
+            <form onSubmit={changePassword} className="space-y-3" noValidate>
+              <Field label="Nouveau mot de passe"><input className="field" type="password" autoComplete="new-password" value={pwd.a} onChange={(e) => setPwd({ ...pwd, a: e.target.value })} /></Field>
+              <Field label="Confirmer"><input className="field" type="password" autoComplete="new-password" value={pwd.b} onChange={(e) => setPwd({ ...pwd, b: e.target.value })} /></Field>
+              {pwdError && <Alert>{pwdError}</Alert>}
+              <Button type="submit" variant="secondary" loading={pwdBusy}>Changer le mot de passe</Button>
+            </form>
+          </Card>
           {isDirector && (
             <Card className="p-5">
               <h2 className="mb-1 text-lg font-bold text-marine">Données de démonstration</h2>
@@ -85,18 +107,6 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
-
-      {isDirector && (
-        <Card className="mt-4">
-          <h2 className="px-5 pt-5 text-lg font-bold text-marine">Utilisateurs de l’école</h2>
-          <div className="overflow-x-auto p-2">
-            <table className="w-full"><thead><tr><th className="th">Nom</th><th className="th">Rôle</th><th className="th">Statut</th></tr></thead>
-              <tbody className="divide-y divide-marine-100">{(users ?? []).map((u) => (
-                <tr key={u.id}><td className="td font-semibold">{u.full_name}</td><td className="td">{ROLE_LABELS[u.role]}</td><td className="td">{u.is_active ? <Badge tone="ok">Actif</Badge> : <Badge tone="bad">Désactivé</Badge>}</td></tr>
-              ))}</tbody></table>
-          </div>
-        </Card>
-      )}
 
       <Modal open={confirmSeed} onClose={() => setConfirmSeed(false)} title="Charger la démonstration ?">
         <p className="text-sm text-slate-600">Des données fictives (30 élèves, 3 classes, notes, présences, paiements) seront ajoutées à votre école. Utilisez cette option uniquement sur une école de test.</p>
