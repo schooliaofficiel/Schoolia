@@ -8,6 +8,10 @@ import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
 import Finance from './pages/Finance'
 import SettingsPage from './pages/Settings'
+import Classes from './pages/Classes'
+import Grades from './pages/Grades'
+import Attendance from './pages/Attendance'
+import Reports from './pages/Reports'
 import type { Role } from './lib/types'
 
 function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
@@ -28,6 +32,10 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="eleves" element={<Guard roles={['director', 'secretary', 'accountant', 'teacher']}><Students /></Guard>} />
+        <Route path="classes" element={<Guard roles={['director', 'secretary', 'teacher']}><Classes /></Guard>} />
+        <Route path="notes" element={<Guard roles={['director', 'secretary', 'teacher']}><Grades /></Guard>} />
+        <Route path="presences" element={<Guard roles={['director', 'secretary', 'teacher']}><Attendance /></Guard>} />
+        <Route path="bulletins" element={<Reports />} />
         <Route path="finances" element={<Guard roles={['director', 'secretary', 'accountant']}><Finance /></Guard>} />
         <Route path="parametres" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
