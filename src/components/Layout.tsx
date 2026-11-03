@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { ROLE_LABELS, type Role } from '../lib/types'
 
@@ -10,6 +10,10 @@ interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[] 
 const NAV: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student'] },
   { to: '/eleves', label: 'Élèves', icon: GraduationCap, roles: ['director', 'secretary', 'accountant', 'teacher'] },
+  { to: '/classes', label: 'Classes et cours', icon: School, roles: ['director', 'secretary', 'teacher'] },
+  { to: '/notes', label: 'Notes', icon: PenLine, roles: ['director', 'secretary', 'teacher'] },
+  { to: '/presences', label: 'Présences', icon: CalendarCheck, roles: ['director', 'secretary', 'teacher'] },
+  { to: '/bulletins', label: 'Bulletins', icon: FileText, roles: ['director', 'secretary', 'teacher', 'parent', 'student'] },
   { to: '/finances', label: 'Finances', icon: Wallet, roles: ['director', 'secretary', 'accountant'] },
   { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student'] },
 ]
