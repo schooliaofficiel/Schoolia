@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-papier text-encre font-sans antialiased; }
+  h1, h2, h3 { @apply font-display; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-ciel; }
+}
+
+@layer components {
+  .ruled {
+    background-image: repeating-linear-gradient(transparent 0 35px, rgba(30,155,215,.22) 35px 36px);
+  }
+  .field { @apply w-full rounded-lg border border-marine-200 bg-white px-3 py-2.5 text-sm text-encre placeholder:text-slate-400 focus:border-ciel focus:outline-none focus:ring-2 focus:ring-ciel/30 disabled:bg-slate-100; }
+  .th { @apply px-3 py-2.5 text-left text-xs font-semibold text-slate-500 whitespace-nowrap; }
+  .td { @apply px-3 py-3 text-sm; }
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .print-area, .print-area * { visibility: visible; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
