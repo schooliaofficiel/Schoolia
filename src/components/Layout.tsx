@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles, HelpCircle } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { to: '/messages', label: 'Messages', icon: Mail, roles: ALL, badge: 'messages' },
   { to: '/utilisateurs', label: 'Utilisateurs', icon: Users, roles: ['director', 'secretary'] },
   { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ALL },
+  { to: '/aide', label: 'Aide', icon: HelpCircle, roles: ALL },
 ]
 
 export function Logo({ light = false }: { light?: boolean }) {
