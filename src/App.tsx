@@ -21,6 +21,10 @@ import Years from './pages/Years'
 import Audit from './pages/Audit'
 import Announcements from './pages/Announcements'
 import Staff from './pages/Staff'
+import Billing from './pages/Billing'
+import Admin from './pages/Admin'
+import { Logo } from './components/Layout'
+import { Button } from './components/ui'
 import type { Role } from './lib/types'
 
 function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
@@ -29,12 +33,21 @@ function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
 }
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, school, loading, signOut, can } = useAuth()
   if (loading) return <Spinner />
   if (!session) return <Login />
   if (!profile) return <Onboarding />
   if (!profile.is_active) {
     return <div className="p-10 text-center text-marine">Ce compte a été désactivé. Contactez la direction de l’école.</div>
+  }
+  if (!school) {
+    // École suspendue (abonnement impayé ou décision de l'administrateur) : seul le directeur accède à l'abonnement
+    return (
+      <div className="mx-auto min-h-screen max-w-3xl px-4 py-8">
+        <div className="mb-6 flex items-center justify-between"><Logo /><Button variant="secondary" onClick={() => void signOut()}>Se déconnecter</Button></div>
+        {can('director') ? <Billing suspendedMode /> : <div className="rounded-xl border border-marine-100 bg-white p-6 text-marine"><p className="font-display text-xl font-extrabold">Accès suspendu</p><p className="mt-2 text-sm text-slate-600">L’accès de l’école est momentanément suspendu. Contactez le directeur de l’établissement.</p></div>}
+      </div>
+    )
   }
   return (
     <Routes>
@@ -52,6 +65,8 @@ export default function App() {
         <Route path="finances" element={<Guard roles={['director', 'secretary', 'accountant']}><Finance /></Guard>} />
         <Route path="parametres" element={<SettingsPage />} />
         <Route path="aide" element={<Help />} />
+        <Route path="abonnement" element={<Guard roles={['director']}><Billing /></Guard>} />
+        <Route path="admin" element={<Admin />} />
         <Route path="annonces" element={<Announcements />} />
         <Route path="personnel" element={<Guard roles={['director', 'secretary']}><Staff /></Guard>} />
         <Route path="annees" element={<Guard roles={['director', 'secretary']}><Years /></Guard>} />
