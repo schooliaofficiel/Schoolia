@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles, HelpCircle } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles, HelpCircle, CalendarRange, ScrollText, Megaphone, Briefcase } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
@@ -18,9 +18,13 @@ const NAV: NavItem[] = [
   { to: '/presences', label: 'Présences', icon: CalendarCheck, roles: ['director', 'secretary', 'teacher'] },
   { to: '/bulletins', label: 'Bulletins', icon: FileText, roles: ['director', 'secretary', 'teacher', 'parent', 'student'] },
   { to: '/finances', label: 'Finances', icon: Wallet, roles: ['director', 'secretary', 'accountant'] },
+  { to: '/annonces', label: 'Annonces', icon: Megaphone, roles: ALL },
   { to: '/notifications', label: 'Notifications', icon: Bell, roles: ALL, badge: 'notifications' },
   { to: '/messages', label: 'Messages', icon: Mail, roles: ALL, badge: 'messages' },
+  { to: '/personnel', label: 'Personnel', icon: Briefcase, roles: ['director', 'secretary'] },
+  { to: '/annees', label: 'Années scolaires', icon: CalendarRange, roles: ['director', 'secretary'] },
   { to: '/utilisateurs', label: 'Utilisateurs', icon: Users, roles: ['director', 'secretary'] },
+  { to: '/audit', label: 'Journal d’audit', icon: ScrollText, roles: ['director'] },
   { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ALL },
   { to: '/aide', label: 'Aide', icon: HelpCircle, roles: ALL },
 ]
