@@ -16,6 +16,7 @@ import Users from './pages/Users'
 import Notifications from './pages/Notifications'
 import Messages from './pages/Messages'
 import Assistant from './pages/Assistant'
+import Help from './pages/Help'
 import type { Role } from './lib/types'
 
 function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="utilisateurs" element={<Guard roles={['director', 'secretary']}><Users /></Guard>} />
         <Route path="finances" element={<Guard roles={['director', 'secretary', 'accountant']}><Finance /></Guard>} />
         <Route path="parametres" element={<SettingsPage />} />
+        <Route path="aide" element={<Help />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
