@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
@@ -11,6 +11,7 @@ const ALL: Role[] = ['director', 'secretary', 'accountant', 'teacher', 'parent',
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard, roles: ALL },
+  { to: '/assistant', label: 'Schoolia AI', icon: Sparkles, roles: ['director', 'secretary', 'accountant'] },
   { to: '/eleves', label: 'Élèves', icon: GraduationCap, roles: ['director', 'secretary', 'accountant', 'teacher'] },
   { to: '/classes', label: 'Classes et cours', icon: School, roles: ['director', 'secretary', 'teacher'] },
   { to: '/notes', label: 'Notes', icon: PenLine, roles: ['director', 'secretary', 'teacher'] },
