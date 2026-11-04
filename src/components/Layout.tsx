@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles, HelpCircle, CalendarRange, ScrollText, Megaphone, Briefcase } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Wallet, Settings, Menu, X, LogOut, School, PenLine, CalendarCheck, FileText, Bell, Mail, Users, Sparkles, HelpCircle, CalendarRange, ScrollText, Megaphone, Briefcase, CreditCard, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
+import { STATUS, daysUntil, type Subscription } from '../lib/billing'
 
-interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[]; badge?: 'notifications' | 'messages' }
+interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[]; badge?: 'notifications' | 'messages'; platformOnly?: boolean }
 const ALL: Role[] = ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student']
 
 const NAV: NavItem[] = [
@@ -24,6 +25,8 @@ const NAV: NavItem[] = [
   { to: '/personnel', label: 'Personnel', icon: Briefcase, roles: ['director', 'secretary'] },
   { to: '/annees', label: 'Années scolaires', icon: CalendarRange, roles: ['director', 'secretary'] },
   { to: '/utilisateurs', label: 'Utilisateurs', icon: Users, roles: ['director', 'secretary'] },
+  { to: '/abonnement', label: 'Abonnement', icon: CreditCard, roles: ['director'] },
+  { to: '/admin', label: 'Plateforme', icon: ShieldCheck, roles: ALL, platformOnly: true },
   { to: '/audit', label: 'Journal d’audit', icon: ScrollText, roles: ['director'] },
   { to: '/parametres', label: 'Paramètres', icon: Settings, roles: ALL },
   { to: '/aide', label: 'Aide', icon: HelpCircle, roles: ALL },
@@ -43,11 +46,12 @@ export function Logo({ light = false }: { light?: boolean }) {
 }
 
 export default function Layout() {
-  const { profile, school, year, can, signOut } = useAuth()
+  const { profile, school, year, can, signOut, isPlatformAdmin } = useAuth()
+  const [sub, setSub] = useState<Subscription | null>(null)
   const [open, setOpen] = useState(false)
   const [counts, setCounts] = useState({ notifications: 0, messages: 0 })
   const location = useLocation()
-  const items = NAV.filter((n) => can(...n.roles))
+  const items = NAV.filter((n) => can(...n.roles) && (!n.platformOnly || isPlatformAdmin))
 
   useEffect(() => {
     if (!profile) return
@@ -61,6 +65,16 @@ export default function Layout() {
     })()
     return () => { active = false }
   }, [profile, location.pathname])
+
+  useEffect(() => {
+    if (!profile || profile.role !== 'director') return
+    let active = true
+    void supabase.from('subscriptions').select('*').maybeSingle().then(({ data }) => { if (active) setSub((data as Subscription) ?? null) })
+    return () => { active = false }
+  }, [profile, location.pathname])
+
+  const subDays = sub ? daysUntil(sub.status === 'trial' ? sub.trial_ends_on : sub.current_period_end) : null
+  const showBanner = !!sub && profile?.role === 'director' && location.pathname !== '/abonnement' && (sub.status === 'past_due' || (subDays !== null && subDays <= 7))
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3" aria-label="Navigation principale">
@@ -124,6 +138,12 @@ export default function Layout() {
 
       <main className="flex-1 lg:pl-64">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          {showBanner && sub && (
+            <Link to="/abonnement" className={clsx('no-print mb-5 block rounded-lg px-4 py-3 text-sm font-semibold', sub.status === 'past_due' || (subDays ?? 0) < 0 ? 'bg-marge-50 text-marge-700' : 'bg-crayon-50 text-crayon-700')}>
+              {sub.status === 'past_due' || (subDays ?? 0) < 0 ? 'Votre abonnement a expiré : réglez-le pour éviter la suspension de l’accès.' : sub.status === 'trial' ? `Essai gratuit : il reste ${subDays} jour(s).` : `Votre abonnement expire dans ${subDays} jour(s).`} <span className="underline">Gérer l’abonnement</span>
+              <span className="sr-only">{STATUS[sub.status].label}</span>
+            </Link>
+          )}
           <Outlet />
         </div>
       </main>
