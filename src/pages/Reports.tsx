@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Download, Printer } from 'lucide-react'
+import { downloadCsv, printArea } from '../lib/export'
 import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { rows } from '../lib/db'
@@ -75,6 +76,9 @@ export default function Reports() {
 
       {!classId || !periodId ? <Card><EmptyState title="Choisissez une classe et une période" /></Card> : ranking.loading ? <Spinner /> : ranking.error ? <Alert>{ranking.error}</Alert> : !ranking.data?.length ? <Card><EmptyState title="Aucun résultat pour cette période" text="Les moyennes apparaissent dès que des notes ont été encodées." /></Card> : (
         <Card>
+          <div className="no-print flex justify-end gap-2 border-b border-marine-100 p-3">
+            <Button variant="secondary" className="px-3 py-1.5" onClick={() => downloadCsv(`classement-${className}-${periodName}`, ['Rang', 'Élève', 'Matricule', 'Moyenne /20', 'Mention'], ranking.data!.map((r) => [r.class_rank, r.student ? fullName(r.student) : '', r.student?.matricule ?? '', r.average, mention(r.average).label]))}><Download className="h-4 w-4" aria-hidden /> Exporter</Button>
+          </div>
           <div className="overflow-x-auto"><table className="w-full">
             <thead className="border-b border-marine-100 bg-papier"><tr><th className="th">Rang</th><th className="th">Élève</th><th className="th text-right">Moyenne /20</th><th className="th">Mention</th><th className="th" /></tr></thead>
             <tbody className="divide-y divide-marine-100">
@@ -131,7 +135,7 @@ export default function Reports() {
                 </div>
                 <p className="mt-4 text-center text-xs text-slate-400">Bulletin généré par SCHOOLIA</p>
               </div>
-              <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setBulletin(null)}>Fermer</Button><Button onClick={() => window.print()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button></div>
+              <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setBulletin(null)}>Fermer</Button><Button onClick={() => printArea()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button></div>
             </>
           )
         })()}

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { rows } from '../lib/db'
 import { askAssistant } from '../lib/api'
 import { dateFr } from '../lib/format'
+import { printArea } from '../lib/export'
 import { Alert, Button, Card } from '../components/ui'
 
 interface Msg { id: string; role: 'user' | 'assistant'; content: string }
@@ -72,7 +73,7 @@ export default function Assistant() {
     if (!printId) return
     const done = () => setPrintId(null)
     window.addEventListener('afterprint', done)
-    const t = setTimeout(() => window.print(), 80)
+    const t = setTimeout(() => printArea(), 80)
     return () => { clearTimeout(t); window.removeEventListener('afterprint', done) }
   }, [printId])
 

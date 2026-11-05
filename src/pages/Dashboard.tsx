@@ -34,9 +34,9 @@ function StaffHome() {
       supabase.from('enrollments').select('id,class_id').eq('academic_year_id', year.id),
       supabase.from('classes').select('id,name').eq('academic_year_id', year.id).order('name'),
       supabase.from('v_student_balances').select('student_id,total_due,total_paid,remaining').eq('academic_year_id', year.id),
-      supabase.from('payments').select('amount,paid_at').gte('paid_at', since),
-      supabase.from('expenses').select('amount,spent_at').gte('spent_at', since),
-      supabase.from('other_income').select('amount,received_at').gte('received_at', since),
+      supabase.from('payments').select('amount,paid_at').is('voided_at', null).gte('paid_at', since),
+      supabase.from('expenses').select('amount,spent_at').is('voided_at', null).gte('spent_at', since),
+      supabase.from('other_income').select('amount,received_at').is('voided_at', null).gte('received_at', since),
       supabase.from('v_absence_summary').select('student_id,absences,lates').order('absences', { ascending: false }).limit(5),
     ])
     const absRows = rows<{ student_id: string; absences: number; lates: number }>(abs).filter((a) => a.absences > 0 || a.lates > 0)

@@ -9,7 +9,10 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [info, setInfo] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(() => {
+    try { if (sessionStorage.getItem('schoolia_idle')) { sessionStorage.removeItem('schoolia_idle'); return 'Votre session a été fermée après 30 minutes d’inactivité. Reconnectez-vous.' } } catch { /* ignore */ }
+    return null
+  })
 
   async function submit(e: FormEvent) {
     e.preventDefault()

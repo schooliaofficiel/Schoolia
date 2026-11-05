@@ -209,7 +209,7 @@ export default function Admin() {
           <Card className="p-5">
             <p className="mb-4 text-sm text-slate-600">Ces coordonnées sont affichées aux écoles au moment de payer. Renseignez uniquement les moyens que vous utilisez réellement.</p>
             <div className="space-y-4">
-              {SETTING_KEYS.map((k) => <Field key={k.key} label={k.label} hint={k.hint}>{k.key === 'pay_instructions' || k.key === 'pay_bank' ? <textarea className="field min-h-20" value={s[k.key] ?? ''} onChange={(e) => setSettings({ ...s, [k.key]: e.target.value })} /> : <input className="field" value={s[k.key] ?? ''} onChange={(e) => setSettings({ ...s, [k.key]: e.target.value })} />}</Field>)}
+              {SETTING_KEYS.map((k) => <Field key={k.key} label={k.label} hint={k.hint}>{k.key === 'pay_instructions' || k.key === 'pay_bank' || k.key === 'ai_guide' ? <textarea className={k.key === 'ai_guide' ? 'field min-h-80 font-mono text-xs' : 'field min-h-20'} value={s[k.key] ?? ''} onChange={(e) => setSettings({ ...s, [k.key]: e.target.value })} /> : <input className="field" value={s[k.key] ?? ''} onChange={(e) => setSettings({ ...s, [k.key]: e.target.value })} />}</Field>)}
             </div>
             <div className="mt-5"><Button loading={busy} onClick={() => void run(() => supabase.from('platform_settings').upsert(SETTING_KEYS.map((k) => ({ key: k.key, value: (settings ?? data.settings)[k.key] ?? '' }))), 'Coordonnées enregistrées.', () => setSettings(null))}>Enregistrer</Button></div>
           </Card>

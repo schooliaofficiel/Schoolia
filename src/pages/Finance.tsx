@@ -1,16 +1,17 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Plus, Printer, Search } from 'lucide-react'
+import { Ban, Download, Pencil, Plus, Printer, Search } from 'lucide-react'
 import { useAuth } from '../auth/AuthProvider'
 import { errorMessage, supabase } from '../lib/supabase'
 import { rows } from '../lib/db'
 import { dateFr, fullName, monthKey, money, sum } from '../lib/format'
+import { downloadCsv, printArea } from '../lib/export'
 import { METHOD_LABELS, type Balance, type ClassRow, type Enrollment, type FeeSchedule, type Payment, type Student } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Spinner, useLoad, useToast } from '../components/ui'
 import clsx from 'clsx'
 
 type Tab = 'payments' | 'balances' | 'cashflow' | 'fees'
-interface Expense { id: string; category: string; description: string | null; amount: number; spent_at: string }
-interface Income { id: string; source: string; description: string | null; amount: number; received_at: string }
+interface Expense { id: string; category: string; description: string | null; amount: number; spent_at: string; voided_at: string | null; void_reason: string | null }
+interface Income { id: string; source: string; description: string | null; amount: number; received_at: string; voided_at: string | null; void_reason: string | null }
 
 export default function Finance() {
   const { school, year, can } = useAuth()
@@ -24,6 +25,10 @@ export default function Finance() {
   const [formError, setFormError] = useState<string | null>(null)
   const [onlyUnpaid, setOnlyUnpaid] = useState(true)
   const [q, setQ] = useState('')
+  const [correct, setCorrect] = useState<Payment | null>(null)
+  const [cf, setCf] = useState({ amount: '', method: 'cash', fee_schedule_id: '', reference: '', note: '', reason: '' })
+  const [voidTarget, setVoidTarget] = useState<null | { kind: 'payment' | 'expense' | 'income'; id: string; label: string }>(null)
+  const [voidReason, setVoidReason] = useState('')
 
   // formulaires
   const [pay, setPay] = useState({ enrollment_id: '', amount: '', method: 'cash', fee_schedule_id: '', reference: '', note: '', filter: '' })
@@ -60,9 +65,9 @@ export default function Finance() {
   if (!data) return null
 
   const thisMonth = monthKey(new Date())
-  const monthPayments = sum(data.payments.filter((p) => monthKey(p.paid_at) === thisMonth), (p) => p.amount)
-  const monthIncome = sum(data.income.filter((i) => monthKey(i.received_at) === thisMonth), (i) => i.amount)
-  const monthExpenses = sum(data.expenses.filter((x) => monthKey(x.spent_at) === thisMonth), (x) => x.amount)
+  const monthPayments = sum(data.payments.filter((p) => !p.voided_at && monthKey(p.paid_at) === thisMonth), (p) => p.amount)
+  const monthIncome = sum(data.income.filter((i) => !i.voided_at && monthKey(i.received_at) === thisMonth), (i) => i.amount)
+  const monthExpenses = sum(data.expenses.filter((x) => !x.voided_at && monthKey(x.spent_at) === thisMonth), (x) => x.amount)
   const totalRemaining = sum(data.balances, (b) => b.remaining)
 
   const tabs: { id: Tab; label: string; show: boolean }[] = [
@@ -138,12 +143,56 @@ export default function Finance() {
     reload()
   }
 
+  function openCorrect(p: Payment) {
+    setCf({ amount: String(p.amount), method: p.method, fee_schedule_id: p.fee_schedule_id ?? '', reference: p.reference ?? '', note: p.note ?? '', reason: '' })
+    setFormError(null); setCorrect(p)
+  }
+  async function saveCorrection(e: FormEvent) {
+    e.preventDefault()
+    if (!correct) return
+    setFormError(null)
+    const amount = Number(cf.amount)
+    if (!(amount > 0)) return setFormError('Le montant doit être supérieur à zéro.')
+    if (cf.reason.trim().length < 5) return setFormError('Indiquez le motif de la correction (5 caractères minimum).')
+    setBusy(true)
+    const { data: newId, error: err } = await supabase.rpc('correct_payment', { p_payment: correct.id, p_amount: amount, p_method: cf.method, p_fee: cf.fee_schedule_id || null, p_reference: cf.reference, p_note: cf.note, p_reason: cf.reason })
+    if (err) { setBusy(false); return setFormError(errorMessage(err)) }
+    const created = rows<Payment>(await supabase.from('payments').select('*').eq('id', newId as string)).at(0)
+    setBusy(false)
+    toast('success', 'Paiement corrigé : un nouveau reçu a été émis.')
+    const before = balanceOf.get(correct.enrollment_id)?.remaining ?? 0
+    setCorrect(null)
+    reload()
+    if (created) setReceipt({ payment: created, remaining: Math.max(before + Number(correct.amount) - amount, 0) })
+  }
+  async function doVoid() {
+    if (!voidTarget) return
+    if (voidReason.trim().length < 5) return setFormError('Indiquez le motif de l’annulation (5 caractères minimum).')
+    setBusy(true); setFormError(null)
+    const res = voidTarget.kind === 'payment'
+      ? await supabase.rpc('void_payment', { p_payment: voidTarget.id, p_reason: voidReason })
+      : await supabase.rpc('void_cash_entry', { p_kind: voidTarget.kind, p_id: voidTarget.id, p_reason: voidReason })
+    setBusy(false)
+    if (res.error) return setFormError(errorMessage(res.error))
+    toast('success', 'Écriture annulée.')
+    setVoidTarget(null); setVoidReason(''); reload()
+  }
+  const askVoid = (kind: 'payment' | 'expense' | 'income', id: string, label: string) => { setVoidReason(''); setFormError(null); setVoidTarget({ kind, id, label }) }
+
+  const exportPayments = () => downloadCsv(`paiements-${year!.name}`, ['Reçu', 'Date', 'Élève', 'Mode', 'Montant', 'Statut', 'Motif d’annulation'],
+    data.payments.map((p) => [p.receipt_number, dateFr(p.paid_at), nameOfEnrollment(p.enrollment_id), METHOD_LABELS[p.method], Number(p.amount), p.voided_at ? 'Annulé' : 'Valide', p.void_reason ?? '']))
+  const exportCash = () => downloadCsv(`depenses-recettes-${year!.name}`, ['Type', 'Date', 'Catégorie / source', 'Description', 'Montant', 'Statut'], [
+    ...data.expenses.map((x) => ['Dépense', dateFr(x.spent_at), x.category, x.description ?? '', Number(x.amount), x.voided_at ? 'Annulé' : 'Valide']),
+    ...data.income.map((x) => ['Recette', dateFr(x.received_at), x.source, x.description ?? '', Number(x.amount), x.voided_at ? 'Annulé' : 'Valide']),
+  ])
+
   const openModal = (m: 'payment' | 'cash' | 'fee') => { setFormError(null); setModal(m) }
   const term = q.trim().toLowerCase()
   const balanceRows = data.balances
     .map((b) => ({ b, name: nameOfEnrollment(b.enrollment_id), cls: classOf.get(b.class_id)?.name ?? '' }))
     .filter((r) => (!onlyUnpaid || r.b.remaining > 0) && r.name.toLowerCase().includes(term))
     .sort((a, b) => b.b.remaining - a.b.remaining)
+  const exportBalances = () => downloadCsv(`soldes-${year!.name}`, ['Élève', 'Classe', 'Dû', 'Payé', 'Reste'], balanceRows.map((r) => [r.name, r.cls, Number(r.b.total_due), Number(r.b.total_paid), Number(r.b.remaining)]))
 
   return (
     <>
@@ -177,18 +226,28 @@ export default function Finance() {
 
       {tab === 'payments' && (
         <Card>
+          <div className="no-print flex justify-end gap-2 border-b border-marine-100 p-3">
+            <Button variant="secondary" className="px-3 py-1.5" onClick={exportPayments}><Download className="h-4 w-4" aria-hidden /> Exporter</Button>
+            <Button variant="secondary" className="px-3 py-1.5" onClick={() => window.print()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button>
+          </div>
           {data.payments.length === 0 ? <EmptyState title="Aucun paiement enregistré" text="Chaque paiement génère automatiquement un reçu numéroté." action={canWrite ? <Button onClick={() => openModal('payment')}>Encaisser un paiement</Button> : undefined} /> : (
             <div className="overflow-x-auto"><table className="w-full">
-              <thead className="border-b border-marine-100 bg-papier"><tr><th className="th">Reçu</th><th className="th">Date</th><th className="th">Élève</th><th className="th">Mode</th><th className="th text-right">Montant</th><th className="th" /></tr></thead>
+              <thead className="border-b border-marine-100 bg-papier"><tr><th className="th">Reçu</th><th className="th">Date</th><th className="th">Élève</th><th className="th">Mode</th><th className="th text-right">Montant</th><th className="th no-print" /></tr></thead>
               <tbody className="divide-y divide-marine-100">
                 {data.payments.map((p) => (
-                  <tr key={p.id}>
-                    <td className="td font-mono text-xs">{p.receipt_number}</td>
+                  <tr key={p.id} className={p.voided_at ? 'bg-slate-50 text-slate-400' : ''}>
+                    <td className="td font-mono text-xs">{p.receipt_number}{p.voided_at && <span className="ml-2"><Badge tone="bad">Annulé</Badge></span>}</td>
                     <td className="td">{dateFr(p.paid_at)}</td>
-                    <td className="td font-semibold">{nameOfEnrollment(p.enrollment_id)}</td>
+                    <td className="td font-semibold">{nameOfEnrollment(p.enrollment_id)}{p.voided_at && p.void_reason && <span className="block text-xs font-normal">{p.void_reason}</span>}</td>
                     <td className="td">{METHOD_LABELS[p.method]}</td>
-                    <td className="td text-right font-bold">{money(p.amount, currency)}</td>
-                    <td className="td text-right"><button className="rounded-lg p-2 text-marine hover:bg-marine-50" aria-label={`Imprimer le reçu ${p.receipt_number}`} onClick={() => setReceipt({ payment: p, remaining: balanceOf.get(p.enrollment_id)?.remaining ?? 0 })}><Printer className="h-4 w-4" /></button></td>
+                    <td className={clsx('td text-right font-bold', p.voided_at && 'line-through')}>{money(p.amount, currency)}</td>
+                    <td className="td whitespace-nowrap text-right no-print">
+                      <button className="rounded-lg p-2 text-marine hover:bg-marine-50" aria-label={`Imprimer le reçu ${p.receipt_number}`} onClick={() => setReceipt({ payment: p, remaining: balanceOf.get(p.enrollment_id)?.remaining ?? 0 })}><Printer className="h-4 w-4" /></button>
+                      {canWrite && !p.voided_at && <>
+                        <button className="rounded-lg p-2 text-marine hover:bg-marine-50" aria-label={`Corriger le reçu ${p.receipt_number}`} onClick={() => openCorrect(p)}><Pencil className="h-4 w-4" /></button>
+                        <button className="rounded-lg p-2 text-marge hover:bg-marge-50" aria-label={`Annuler le reçu ${p.receipt_number}`} onClick={() => askVoid('payment', p.id, `le paiement ${p.receipt_number} de ${money(p.amount, currency)}`)}><Ban className="h-4 w-4" /></button>
+                      </>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -205,6 +264,7 @@ export default function Finance() {
               <input className="field pl-9" placeholder="Rechercher un élève" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un élève" />
             </div>
             <label className="flex items-center gap-2 text-sm font-semibold text-marine"><input type="checkbox" checked={onlyUnpaid} onChange={(e) => setOnlyUnpaid(e.target.checked)} className="h-4 w-4" /> Impayés uniquement</label>
+            <Button variant="secondary" className="px-3 py-1.5" onClick={exportBalances}><Download className="h-4 w-4" aria-hidden /> Exporter</Button>
           </div>
           {balanceRows.length === 0 ? <EmptyState title="Aucun solde à afficher" text="Aucun élève ne correspond à ces critères." /> : (
             <div className="overflow-x-auto"><table className="w-full">
@@ -225,24 +285,33 @@ export default function Finance() {
       )}
 
       {tab === 'cashflow' && canWrite && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <h2 className="px-4 pt-4 text-base font-bold text-marine">Dépenses</h2>
-            {data.expenses.length === 0 ? <EmptyState title="Aucune dépense" /> : (
-              <ul className="divide-y divide-marine-100 p-2">{data.expenses.map((x) => (
-                <li key={x.id} className="flex items-center justify-between gap-3 px-2 py-2.5 text-sm"><span><span className="font-semibold">{x.category}</span><span className="block text-xs text-slate-500">{dateFr(x.spent_at)}{x.description ? ` · ${x.description}` : ''}</span></span><span className="font-bold text-crayon-700">− {money(x.amount, currency)}</span></li>
-              ))}</ul>
-            )}
-          </Card>
-          <Card>
-            <h2 className="px-4 pt-4 text-base font-bold text-marine">Autres recettes</h2>
-            {data.income.length === 0 ? <EmptyState title="Aucune autre recette" /> : (
-              <ul className="divide-y divide-marine-100 p-2">{data.income.map((x) => (
-                <li key={x.id} className="flex items-center justify-between gap-3 px-2 py-2.5 text-sm"><span><span className="font-semibold">{x.source}</span><span className="block text-xs text-slate-500">{dateFr(x.received_at)}{x.description ? ` · ${x.description}` : ''}</span></span><span className="font-bold text-feuille-700">+ {money(x.amount, currency)}</span></li>
-              ))}</ul>
-            )}
-          </Card>
-        </div>
+        <>
+          <div className="no-print mb-3 flex gap-2"><Button variant="secondary" className="px-3 py-1.5" onClick={exportCash}><Download className="h-4 w-4" aria-hidden /> Exporter</Button><Button variant="secondary" className="px-3 py-1.5" onClick={() => window.print()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button></div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <h2 className="px-4 pt-4 text-base font-bold text-marine">Dépenses</h2>
+              {data.expenses.length === 0 ? <EmptyState title="Aucune dépense" /> : (
+                <ul className="divide-y divide-marine-100 p-2">{data.expenses.map((x) => (
+                  <li key={x.id} className={clsx('flex items-center justify-between gap-3 px-2 py-2.5 text-sm', x.voided_at && 'text-slate-400')}>
+                    <span><span className="font-semibold">{x.category}</span>{x.voided_at && <span className="ml-2"><Badge tone="bad">Annulée</Badge></span>}<span className="block text-xs text-slate-500">{dateFr(x.spent_at)}{x.description ? ` · ${x.description}` : ''}{x.voided_at && x.void_reason ? ` · ${x.void_reason}` : ''}</span></span>
+                    <span className="flex items-center gap-1"><span className={clsx('font-bold', x.voided_at ? 'line-through' : 'text-crayon-700')}>− {money(x.amount, currency)}</span>{!x.voided_at && <button className="no-print rounded-lg p-2 text-marge hover:bg-marge-50" aria-label={`Annuler la dépense ${x.category}`} onClick={() => askVoid('expense', x.id, `la dépense « ${x.category} » de ${money(x.amount, currency)}`)}><Ban className="h-4 w-4" /></button>}</span>
+                  </li>
+                ))}</ul>
+              )}
+            </Card>
+            <Card>
+              <h2 className="px-4 pt-4 text-base font-bold text-marine">Autres recettes</h2>
+              {data.income.length === 0 ? <EmptyState title="Aucune autre recette" /> : (
+                <ul className="divide-y divide-marine-100 p-2">{data.income.map((x) => (
+                  <li key={x.id} className={clsx('flex items-center justify-between gap-3 px-2 py-2.5 text-sm', x.voided_at && 'text-slate-400')}>
+                    <span><span className="font-semibold">{x.source}</span>{x.voided_at && <span className="ml-2"><Badge tone="bad">Annulée</Badge></span>}<span className="block text-xs text-slate-500">{dateFr(x.received_at)}{x.description ? ` · ${x.description}` : ''}{x.voided_at && x.void_reason ? ` · ${x.void_reason}` : ''}</span></span>
+                    <span className="flex items-center gap-1"><span className={clsx('font-bold', x.voided_at ? 'line-through' : 'text-feuille-700')}>+ {money(x.amount, currency)}</span>{!x.voided_at && <button className="no-print rounded-lg p-2 text-marge hover:bg-marge-50" aria-label={`Annuler la recette ${x.source}`} onClick={() => askVoid('income', x.id, `la recette « ${x.source} » de ${money(x.amount, currency)}`)}><Ban className="h-4 w-4" /></button>}</span>
+                  </li>
+                ))}</ul>
+              )}
+            </Card>
+          </div>
+        </>
       )}
 
       {tab === 'fees' && (
@@ -322,6 +391,33 @@ export default function Finance() {
         </form>
       </Modal>
 
+      {/* Correction d'un paiement */}
+      <Modal open={correct !== null} onClose={() => setCorrect(null)} title="Corriger le paiement" wide>
+        {correct && (
+          <form onSubmit={saveCorrection} className="space-y-4" noValidate>
+            <Alert tone="info">Le paiement {correct.receipt_number} sera annulé et remplacé par un nouveau paiement avec un nouveau reçu. L’historique est conservé.</Alert>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label={`Montant (${currency})`}><input className="field" type="number" min="0" step="0.01" inputMode="decimal" value={cf.amount} onChange={(e) => setCf({ ...cf, amount: e.target.value })} /></Field>
+              <Field label="Mode de paiement"><select className="field" value={cf.method} onChange={(e) => setCf({ ...cf, method: e.target.value })}>{Object.entries(METHOD_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+              <Field label="Frais concerné"><select className="field" value={cf.fee_schedule_id} onChange={(e) => setCf({ ...cf, fee_schedule_id: e.target.value })}><option value="">Paiement général</option>{data.fees.filter((f) => !f.class_id || f.class_id === enrollOf.get(correct.enrollment_id)?.class_id).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}</select></Field>
+              <Field label="Référence"><input className="field" value={cf.reference} onChange={(e) => setCf({ ...cf, reference: e.target.value })} /></Field>
+            </div>
+            <Field label="Note"><input className="field" value={cf.note} onChange={(e) => setCf({ ...cf, note: e.target.value })} /></Field>
+            <Field label="Motif de la correction (obligatoire)"><input className="field" value={cf.reason} onChange={(e) => setCf({ ...cf, reason: e.target.value })} placeholder="Ex : montant saisi par erreur" /></Field>
+            {formError && <Alert>{formError}</Alert>}
+            <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setCorrect(null)}>Annuler</Button><Button type="submit" loading={busy}>Corriger et émettre un nouveau reçu</Button></div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Annulation */}
+      <Modal open={voidTarget !== null} onClose={() => setVoidTarget(null)} title="Annuler cette écriture ?">
+        <p className="mb-3 text-sm text-slate-600">Vous allez annuler {voidTarget?.label}. Elle restera visible dans l’historique, barrée, mais ne comptera plus dans les soldes ni les bilans.</p>
+        <Field label="Motif de l’annulation (obligatoire)"><input className="field" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="Ex : doublon, erreur d’élève…" /></Field>
+        {formError && <div className="mt-3"><Alert>{formError}</Alert></div>}
+        <div className="mt-5 flex justify-end gap-2"><Button variant="secondary" onClick={() => setVoidTarget(null)}>Retour</Button><Button variant="danger" loading={busy} onClick={() => void doVoid()}>Annuler l’écriture</Button></div>
+      </Modal>
+
       {/* Reçu */}
       <Modal open={receipt !== null} onClose={() => setReceipt(null)} title="Reçu de paiement">
         {receipt && (
@@ -340,9 +436,10 @@ export default function Finance() {
                 <div className="flex justify-between border-t border-marine-100 pt-2 text-base"><dt className="font-bold">Montant reçu</dt><dd className="font-extrabold text-marine">{money(receipt.payment.amount, currency)}</dd></div>
                 <div className="flex justify-between"><dt className="text-slate-500">Reste à payer</dt><dd className="font-semibold">{money(receipt.remaining, currency)}</dd></div>
               </dl>
+              {receipt.payment.voided_at && <p className="mt-3 rounded bg-marge-50 p-2 text-center text-sm font-bold text-marge-700">REÇU ANNULÉ{receipt.payment.void_reason ? ` — ${receipt.payment.void_reason}` : ''}</p>}
               <p className="mt-5 text-center text-xs text-slate-400">Reçu généré par SCHOOLIA</p>
             </div>
-            <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setReceipt(null)}>Fermer</Button><Button onClick={() => window.print()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button></div>
+            <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setReceipt(null)}>Fermer</Button><Button onClick={() => printArea()}><Printer className="h-4 w-4" aria-hidden /> Imprimer</Button></div>
           </>
         )}
       </Modal>

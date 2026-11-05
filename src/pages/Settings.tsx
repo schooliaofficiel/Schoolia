@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { errorMessage, supabase } from '../lib/supabase'
 import { ROLE_LABELS } from '../lib/types'
 import { Alert, Button, Card, Field, Modal, PageHeader, useToast } from '../components/ui'
+import MfaCard from '../components/MfaCard'
 
 export default function SettingsPage() {
   const { school, profile, year, can, refresh } = useAuth()
@@ -98,6 +99,7 @@ export default function SettingsPage() {
               <Button type="submit" variant="secondary" loading={pwdBusy}>Changer le mot de passe</Button>
             </form>
           </Card>
+          <MfaCard />
           {isDirector && (
             <Card className="p-5">
               <h2 className="mb-1 text-lg font-bold text-marine">Données de démonstration</h2>

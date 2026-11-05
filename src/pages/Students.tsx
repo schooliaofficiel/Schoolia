@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Download, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { downloadCsv } from '../lib/export'
 import { useAuth } from '../auth/AuthProvider'
 import { errorMessage, supabase } from '../lib/supabase'
 import { rows } from '../lib/db'
@@ -131,7 +132,10 @@ export default function Students() {
       <PageHeader
         title="Élèves"
         subtitle={`${data?.students.length ?? 0} élève(s) · ${data?.enrollments.length ?? 0} inscrit(s) cette année`}
-        actions={canWrite ? <Button onClick={openNew}><Plus className="h-4 w-4" aria-hidden /> Nouvel élève</Button> : undefined}
+        actions={<>
+          <Button variant="secondary" onClick={() => downloadCsv(`eleves-${year?.name ?? ''}`, ['Matricule', 'Nom', 'Postnom', 'Prénom', 'Sexe', 'Naissance', 'Classe'], list.map((s) => [s.matricule, s.last_name, s.middle_name ?? '', s.first_name, s.gender ?? '', s.birth_date ?? '', classOf.get(enrollmentOf.get(s.id)?.class_id ?? '')?.name ?? 'Non inscrit']))} disabled={list.length === 0}><Download className="h-4 w-4" aria-hidden /> Exporter</Button>
+          {canWrite && <Button onClick={openNew}><Plus className="h-4 w-4" aria-hidden /> Nouvel élève</Button>}
+        </>}
       />
 
       <Card>
