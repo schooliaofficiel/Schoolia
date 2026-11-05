@@ -1,0 +1,26 @@
+{
+  "name": "SCHOOLIA — Gestion scolaire intelligente",
+  "short_name": "SCHOOLIA",
+  "description": "Gestion scolaire complète : élèves, notes, présences, finances et assistant intelligent.",
+  "lang": "fr",
+  "dir": "ltr",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F7FB",
+  "theme_color": "#12315C",
+  "categories": ["education", "business"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Faire l’appel", "short_name": "Présences", "url": "/presences" },
+    { "name": "Encoder les notes", "short_name": "Notes", "url": "/notes" },
+    { "name": "Schoolia AI", "short_name": "Assistant", "url": "/assistant" },
+    { "name": "Finances", "short_name": "Finances", "url": "/finances" }
+  ]
+}
