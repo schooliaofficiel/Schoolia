@@ -22,6 +22,7 @@ import Audit from './pages/Audit'
 import Announcements from './pages/Announcements'
 import Staff from './pages/Staff'
 import Billing from './pages/Billing'
+import MfaChallenge from './pages/MfaChallenge'
 import Admin from './pages/Admin'
 import { Logo } from './components/Layout'
 import { Button } from './components/ui'
@@ -33,9 +34,10 @@ function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
 }
 
 export default function App() {
-  const { session, profile, school, loading, signOut, can } = useAuth()
+  const { session, profile, school, loading, signOut, can, mfaRequired } = useAuth()
   if (loading) return <Spinner />
   if (!session) return <Login />
+  if (mfaRequired) return <MfaChallenge />
   if (!profile) return <Onboarding />
   if (!profile.is_active) {
     return <div className="p-10 text-center text-marine">Ce compte a été désactivé. Contactez la direction de l’école.</div>
