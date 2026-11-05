@@ -13,6 +13,7 @@ export interface FeeSchedule { id: string; name: string; amount: number; class_i
 export interface Payment {
   id: string; enrollment_id: string; fee_schedule_id: string | null; amount: number; method: 'cash' | 'mobile_money' | 'bank' | 'other'
   reference: string | null; paid_at: string; receipt_number: string; note: string | null
+  voided_at: string | null; void_reason: string | null; replaces_payment_id: string | null
 }
 export interface Balance { enrollment_id: string; student_id: string; class_id: string; total_due: number; total_paid: number; remaining: number }
 

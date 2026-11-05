@@ -39,5 +39,12 @@ export const SETTING_KEYS: { key: string; label: string; hint: string }[] = [
   { key: 'pay_afrimoney', label: 'Afrimoney', hint: 'Numéro + nom du bénéficiaire' },
   { key: 'pay_bank', label: 'Compte bancaire', hint: 'Banque, intitulé, numéro de compte' },
   { key: 'pay_instructions', label: 'Instructions affichées aux écoles', hint: 'Ex : indiquez le numéro de facture en référence ; validation sous 24 h.' },
+  { key: 'ai_guide', label: 'Guide de Schoolia AI', hint: 'Ce que l’assistant sait du fonctionnement de l’application. À mettre à jour à chaque nouveauté.' },
 ]
-export const daysUntil = (d: string | null) => d ? Math.ceil((new Date(d + 'T23:59:59').getTime() - Date.now()) / 86400000) : null
+// Jours restants jusqu'à une date (AAAA-MM-JJ) : même logique que la base (différence de dates, sans heures).
+export function daysUntil(d: string | null): number | null {
+  if (!d) return null
+  const [y, m, day] = d.split('-').map(Number)
+  const now = new Date()
+  return Math.round((Date.UTC(y, m - 1, day) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000)
+}
