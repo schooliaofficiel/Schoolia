@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:sw": "node scripts/sw.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.45.4",
@@ -26,6 +28,7 @@
     "postcss": "8.4.47",
     "tailwindcss": "3.4.14",
     "typescript": "5.6.3",
-    "vite": "5.4.10"
+    "vite": "5.4.10",
+    "vitest": "2.1.4"
   }
 }

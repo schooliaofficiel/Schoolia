@@ -24,7 +24,21 @@ npm run dev
 - Authentification : dans *Authentication → Providers → Email*, désactiver « Confirm email » pendant les tests pour créer un compte et accéder directement à l'application.
 - Dans *Authentication → URL Configuration*, ajouter l'URL Vercel du site.
 
+## Application mobile installable (PWA)
+- `public/manifest.webmanifest`, icônes, `public/sw.js` (service worker) et `public/offline.html`.
+- Seuls les fichiers statiques sont mis en cache ; les données (Supabase) ne le sont jamais.
+- Installation : Android (Chrome) via le bandeau ou Paramètres ; iPhone (Safari) via Partager > Sur l'écran d'accueil.
+- Pour publier une nouvelle version du cache, changer `VERSION` dans `public/sw.js`.
+
+## Tests
+- `npm test` : tests unitaires (formats, calculs d'abonnement, export CSV).
+- `npm run test:sw` : simulation du service worker (aucune donnée n'est mise en cache).
+- `supabase/tests/001_security_and_isolation.sql` : à coller dans Supabase → SQL Editor ; vérifie l'isolation entre écoles, les droits par rôle, les finances et la facturation. Tout est annulé à la fin ; le message final indique « TESTS: n/n réussis » ou la liste des échecs.
+- GitHub Actions (`.github/workflows/ci.yml`) lance les tests et la compilation à chaque envoi.
+
 ## Sécurité
+Voir `docs/SECURITE.md` (mesures en place et réglages à faire dans les tableaux de bord).
+
 - Isolation entre écoles garantie par les règles RLS PostgreSQL, pas par le code du navigateur.
 - Les clés des fournisseurs d'IA ne seront jamais dans ce code : elles vivront dans une fonction serveur Supabase.
 
