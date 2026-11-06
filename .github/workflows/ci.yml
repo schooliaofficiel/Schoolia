@@ -14,6 +14,8 @@ jobs:
       - run: npm install
       - name: Tests automatisés
         run: npm test
+      - name: Test du service worker (aucune donnée en cache)
+        run: npm run test:sw
       - name: Compilation
         run: npm run build
         env:
