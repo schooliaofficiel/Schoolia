@@ -34,10 +34,22 @@ function Guard({ roles, children }: { roles: Role[]; children: JSX.Element }) {
 }
 
 export default function App() {
-  const { session, profile, school, loading, signOut, can, mfaRequired } = useAuth()
+  const { session, profile, school, loading, signOut, can, mfaRequired, loadError, refresh } = useAuth()
   if (loading) return <Spinner />
   if (!session) return <Login />
   if (mfaRequired) return <MfaChallenge />
+  if (loadError && !profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="max-w-sm text-center">
+          <Logo />
+          <h1 className="mt-6 text-2xl font-extrabold text-marine">Connexion impossible</h1>
+          <p className="mb-5 mt-2 text-sm text-slate-600">SCHOOLIA n’a pas pu joindre le serveur. Vérifiez votre connexion Internet, puis réessayez.</p>
+          <div className="flex justify-center gap-2"><Button onClick={() => void refresh()}>Réessayer</Button><Button variant="secondary" onClick={() => void signOut()}>Se déconnecter</Button></div>
+        </div>
+      </div>
+    )
+  }
   if (!profile) return <Onboarding />
   if (!profile.is_active) {
     return <div className="p-10 text-center text-marine">Ce compte a été désactivé. Contactez la direction de l’école.</div>
