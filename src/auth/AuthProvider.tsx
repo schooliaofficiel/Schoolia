@@ -9,6 +9,7 @@ interface AuthState {
   school: School | null
   year: AcademicYear | null
   isPlatformAdmin: boolean
+  loadError: boolean
   mfaRequired: boolean
   refreshMfa: () => Promise<void>
   loading: boolean
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [year, setYear] = useState<AcademicYear | null>(null)
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
   const [mfaRequired, setMfaRequired] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const lastActivity = useRef(Date.now())
   const [loading, setLoading] = useState(true)
 
@@ -41,7 +43,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const { data: adm } = await supabase.rpc('am_i_platform_admin')
     setIsPlatformAdmin(adm === true)
-    const { data: p } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
+    const { data: p, error: pe } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle()
+    if (pe) { setLoadError(true); return }
+    setLoadError(false)
     setProfile((p as Profile) ?? null)
     if (p) {
       const [{ data: s }, { data: y }] = await Promise.all([
@@ -90,11 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session])
 
   const value = useMemo<AuthState>(() => ({
-    session, profile, school, year, isPlatformAdmin, mfaRequired, refreshMfa: async () => { await checkMfa(); await loadContext(session?.user.id ?? null) }, loading,
+    session, profile, school, year, isPlatformAdmin, loadError, mfaRequired, refreshMfa: async () => { await checkMfa(); await loadContext(session?.user.id ?? null) }, loading,
     can: (...roles) => (profile ? roles.includes(profile.role) : false),
     refresh: async () => { await loadContext(session?.user.id ?? null) },
     signOut: async () => { await supabase.auth.signOut() },
-  }), [session, profile, school, year, isPlatformAdmin, mfaRequired, checkMfa, loading, loadContext])
+  }), [session, profile, school, year, isPlatformAdmin, loadError, mfaRequired, checkMfa, loading, loadContext])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
