@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { ROLE_LABELS, type Role } from '../lib/types'
 import { STATUS, daysUntil, type Subscription } from '../lib/billing'
+import { InstallBanner, OnlineBanner } from './pwa'
 
 interface NavItem { to: string; label: string; icon: typeof Menu; roles: Role[]; badge?: 'notifications' | 'messages'; platformOnly?: boolean }
 const ALL: Role[] = ['director', 'secretary', 'accountant', 'teacher', 'parent', 'student']
@@ -118,7 +119,7 @@ export default function Layout() {
     <div className="min-h-screen lg:flex">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 lg:block no-print">{side}</aside>
 
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-marine-100 bg-white px-4 py-3 lg:hidden no-print">
+      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-marine-100 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden no-print">
         <Logo />
         <button onClick={() => setOpen(true)} aria-label="Ouvrir le menu" className="relative rounded-lg p-2 text-marine hover:bg-marine-50">
           <Menu className="h-6 w-6" />
@@ -138,6 +139,8 @@ export default function Layout() {
 
       <main className="flex-1 lg:pl-64">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+          <OnlineBanner />
+          <InstallBanner />
           {showBanner && sub && (
             <Link to="/abonnement" className={clsx('no-print mb-5 block rounded-lg px-4 py-3 text-sm font-semibold', sub.status === 'past_due' || (subDays ?? 0) < 0 ? 'bg-marge-50 text-marge-700' : 'bg-crayon-50 text-crayon-700')}>
               {sub.status === 'past_due' || (subDays ?? 0) < 0 ? 'Votre abonnement a expiré : réglez-le pour éviter la suspension de l’accès.' : sub.status === 'trial' ? `Essai gratuit : il reste ${subDays} jour(s).` : `Votre abonnement expire dans ${subDays} jour(s).`} <span className="underline">Gérer l’abonnement</span>
