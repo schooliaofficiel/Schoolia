@@ -80,7 +80,7 @@ export default function MfaCard() {
           <Field label="2. Saisissez le code à 6 chiffres"><input className="field w-40 text-center font-mono text-lg tracking-widest" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} /></Field>
           {err && <Alert>{err}</Alert>}
           <div className="flex gap-2"><Button type="submit" loading={busy}>Activer</Button><Button type="button" variant="secondary" onClick={() => setEnroll(null)}>Annuler</Button></div>
-        </>
+        </form>
       ) : (
         <>
           <p className="mb-3 text-sm text-slate-600">Protégez votre compte avec un code temporaire généré par une application sur votre téléphone. {profile?.role === 'director' ? 'Recommandée pour le directeur, qui gère les paiements et les accès.' : ''}</p>
