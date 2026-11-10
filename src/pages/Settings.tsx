@@ -5,6 +5,7 @@ import { ROLE_LABELS } from '../lib/types'
 import { Alert, Button, Card, Field, Modal, PageHeader, useToast } from '../components/ui'
 import MfaCard from '../components/MfaCard'
 import { InstallCard } from '../components/pwa'
+import PushCard from '../components/PushCard'
 
 export default function SettingsPage() {
   const { school, profile, year, can, refresh } = useAuth()
@@ -101,6 +102,7 @@ export default function SettingsPage() {
             </form>
           </Card>
           <InstallCard />
+          <PushCard />
           <MfaCard />
           {isDirector && (
             <Card className="p-5">
