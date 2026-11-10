@@ -1,5 +1,5 @@
 /* SCHOOLIA — service worker
-   Objectif : installation sur l'écran d'accueil, démarrage rapide, page de secours hors connexion.
+   Objectif : installation sur l'écran d'accueil, démarrage rapide, page de secours hors connexion, notifications push.
    Sécurité : seuls les fichiers statiques de l'application sont mis en cache. Les données (Supabase, API, authentification)
    ne passent JAMAIS par ce cache : elles sont toujours demandées au réseau. */
 const VERSION = 'schoolia-v1'
@@ -20,6 +20,41 @@ self.addEventListener('activate', (event) => {
 
 // L'application propose « Actualiser » : la nouvelle version s'active seulement à la demande de l'utilisateur
 self.addEventListener('message', (event) => { if (event.data === 'SKIP_WAITING') self.skipWaiting() })
+
+/* ---------- Notifications push ---------- */
+// Réception d'un push : le serveur envoie { id, title, body, kind, url }. Aucune donnée sensible n'est mise en cache.
+self.addEventListener('push', (event) => {
+  let data = {}
+  try { data = event.data ? event.data.json() : {} } catch { data = { body: event.data ? event.data.text() : '' } }
+  const title = typeof data.title === 'string' && data.title ? data.title : 'SCHOOLIA'
+  const options = {
+    body: typeof data.body === 'string' ? data.body : '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: typeof data.id === 'string' ? data.id : 'schoolia',
+    data: { url: typeof data.url === 'string' ? data.url : '/notifications' },
+  }
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+// Toucher la notification : ouvre (ou ramène au premier plan) SCHOOLIA sur la bonne page. Seuls les chemins internes sont acceptés.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const raw = event.notification.data && event.notification.data.url
+  const path = typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/notifications'
+  const target = new URL(path, self.location.origin).href
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const client of windows) {
+      if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+        await client.focus()
+        if ('navigate' in client) { try { await client.navigate(target) } catch { /* ignore */ } }
+        return
+      }
+    }
+    await self.clients.openWindow(target)
+  })())
+})
 
 async function cacheFirst(name, request) {
   const cache = await caches.open(name)
