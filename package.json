@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:sw": "node scripts/sw.test.mjs"
+    "test:sw": "node scripts/sw.test.mjs && node scripts/sw.push.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.45.4",
